@@ -261,6 +261,59 @@ tr:hover td { background: rgba(37,99,235,0.04); }
 .brand-preview-body { padding: 16px 18px; background: var(--bg); }
 
 /* ============================================================
+   MODAL
+   ============================================================ */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,0.4); z-index: 200;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.modal-box {
+  background: var(--surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-3);
+  width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; padding: 24px;
+}
+.modal-box.modal-wide { max-width: 860px; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.modal-header h3 { margin: 0; font-size: 18px; }
+.modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted); }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
+.tab-btn {
+  padding: 10px 16px; background: none; border: none; font-weight: 600; font-size: 14px;
+  color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tab-btn.active { color: var(--primary); border-color: var(--primary); }
+.tab-content.hidden { display: none; }
+
+/* Dropzone (fungsional) */
+.import-dropzone {
+  border: 2px dashed var(--border); border-radius: var(--radius-md); padding: 32px 20px;
+  text-align: center; cursor: pointer; transition: border-color 0.15s;
+}
+.import-dropzone:hover, .import-dropzone.dragover { border-color: var(--primary); background: rgba(37,99,235,0.04); }
+.import-dropzone .icon { font-size: 32px; display: block; margin-bottom: 8px; }
+.import-format-chips { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+.format-chip { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--info-bg); color: var(--info-text); }
+
+/* Matriks jawaban (manual & preview import) */
+.matrix-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+.matrix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap: 10px; max-height: 340px; overflow-y: auto; padding: 4px; }
+.matrix-item { display: flex; align-items: center; gap: 8px; background: var(--bg); border-radius: var(--radius-sm); padding: 6px 10px; }
+.matrix-item .no { font-size: 12px; font-weight: 700; color: var(--text-muted); width: 24px; }
+.option-pills { display: flex; gap: 4px; flex: 1; }
+.option-pill {
+  flex: 1; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface);
+  font-size: 12px; font-weight: 700; cursor: pointer; color: var(--text-muted);
+}
+.option-pill.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.import-success-banner {
+  background: var(--success-bg); color: var(--success-text); padding: 10px 14px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;
+}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 1024px) {

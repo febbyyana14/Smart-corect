@@ -110,6 +110,8 @@ async function loadDashboard() {
 // ============================================================
 // MATA PELAJARAN
 // ============================================================
+let editingMapelId = null;
+
 async function loadMapel() {
   const res = await apiGet('getMapel');
   if (!res.success) return;
@@ -120,29 +122,32 @@ async function loadMapel() {
       <span>📘</span>
       <div class="subj-name">${m.namaMapel}</div>
       <div class="btn-row" style="margin-top:12px">
-        <button class="btn btn-outline btn-sm" onclick="editMapel('${m.id}','${escapeQ(m.namaMapel)}')">Edit</button>
+        <button class="btn btn-outline btn-sm" onclick="openMapelModal('${m.id}','${escapeQ(m.namaMapel)}')">Edit</button>
         <button class="btn btn-ghost btn-sm" onclick="removeMapel('${m.id}')">Hapus</button>
       </div>
     </div>`).join('') + `<div class="subject-card-add" id="btn-add-mapel-inline">+ Tambah Mapel</div>`;
-  document.getElementById('btn-add-mapel-inline').addEventListener('click', () => addMapel());
+  document.getElementById('btn-add-mapel-inline').addEventListener('click', () => openMapelModal());
 }
 
-async function addMapel() {
-  const nama = prompt('Nama mata pelajaran baru:');
-  if (!nama) return;
-  const res = await apiPost('saveMapel', { namaMapel: nama });
-  showToast(res.message, res.success ? 'success' : 'error');
-  if (res.success) loadMapel();
+function openMapelModal(id = null, namaLama = '') {
+  editingMapelId = id;
+  document.getElementById('modal-mapel-title').textContent = id ? 'Edit Mata Pelajaran' : 'Tambah Mata Pelajaran';
+  document.getElementById('mapel-form-nama').value = namaLama;
+  document.getElementById('modal-mapel').classList.remove('hidden');
 }
-document.getElementById('btn-add-mapel').addEventListener('click', addMapel);
+function closeMapelModal() { document.getElementById('modal-mapel').classList.add('hidden'); }
 
-async function editMapel(id, namaLama) {
-  const nama = prompt('Ubah nama mata pelajaran:', namaLama);
-  if (!nama) return;
-  const res = await apiPost('saveMapel', { id, namaMapel: nama });
+document.getElementById('btn-add-mapel').addEventListener('click', () => openMapelModal());
+document.getElementById('btn-close-modal-mapel').addEventListener('click', closeMapelModal);
+document.getElementById('btn-cancel-mapel').addEventListener('click', closeMapelModal);
+
+document.getElementById('btn-confirm-mapel').addEventListener('click', async () => {
+  const namaMapel = document.getElementById('mapel-form-nama').value.trim();
+  if (!namaMapel) return showToast('Nama mata pelajaran wajib diisi.', 'error');
+  const res = await apiPost('saveMapel', editingMapelId ? { id: editingMapelId, namaMapel } : { namaMapel });
   showToast(res.message, res.success ? 'success' : 'error');
-  if (res.success) loadMapel();
-}
+  if (res.success) { closeMapelModal(); loadMapel(); }
+});
 
 async function removeMapel(id) {
   if (!confirm('Hapus mata pelajaran ini?')) return;
@@ -152,8 +157,11 @@ async function removeMapel(id) {
 }
 
 // ============================================================
-// KUNCI JAWABAN
+// KUNCI JAWABAN — modal dengan tab Manual & Import
 // ============================================================
+let manualAnswers = {};     // { nomor: 'A' }
+let importedAnswers = [];   // [{nomor, jawaban}]
+
 async function loadKunci() {
   const res = await apiGet('getKunciJawaban');
   if (!res.success) return;
@@ -174,21 +182,139 @@ async function loadKunci() {
     : '<tr><td colspan="5">Belum ada kunci jawaban.</td></tr>';
 }
 
-document.getElementById('btn-add-kunci').addEventListener('click', async () => {
-  const namaUjian = prompt('Nama ujian / paket soal:');
-  if (!namaUjian) return;
-  const jumlahSoal = Number(prompt('Jumlah soal pilihan ganda:', '40'));
-  if (!jumlahSoal) return;
+// --- Buka/Tutup Modal ---
+function openKunciModal() {
+  manualAnswers = {}; importedAnswers = [];
+  document.getElementById('kunci-form-nama').value = '';
+  document.getElementById('kunci-form-kelas').value = '';
+  document.getElementById('kunci-form-jumlah').value = 40;
+  document.getElementById('kunci-form-mapel').innerHTML = cachedMapel.length
+    ? cachedMapel.map(m => `<option value="${m.id}">${m.namaMapel}</option>`).join('')
+    : '<option value="">(Belum ada mata pelajaran)</option>';
+  switchKunciTab('manual');
+  renderManualMatrix();
+  document.getElementById('import-preview-wrap').classList.add('hidden');
+  document.getElementById('import-success-banner').classList.add('hidden');
+  document.getElementById('scan-preview')?.classList.add('hidden');
+  document.getElementById('modal-kunci').classList.remove('hidden');
+}
+function closeKunciModal() { document.getElementById('modal-kunci').classList.add('hidden'); }
+document.getElementById('btn-add-kunci').addEventListener('click', openKunciModal);
+document.getElementById('btn-close-modal-kunci').addEventListener('click', closeKunciModal);
+document.getElementById('btn-cancel-kunci').addEventListener('click', closeKunciModal);
 
-  let kunciJawaban = [];
-  for (let i = 1; i <= jumlahSoal; i++) {
-    const j = prompt(`Kunci jawaban nomor ${i} (A/B/C/D):`);
-    if (j) kunciJawaban.push({ nomor: i, jawaban: j.toUpperCase() });
+// --- Tab switching ---
+function switchKunciTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('tab-manual').classList.toggle('hidden', tab !== 'manual');
+  document.getElementById('tab-import').classList.toggle('hidden', tab !== 'import');
+}
+document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => switchKunciTab(btn.dataset.tab)));
+
+// --- Tab Manual: render grid A/B/C/D interaktif ---
+document.getElementById('kunci-form-jumlah').addEventListener('input', renderManualMatrix);
+function renderManualMatrix() {
+  const n = Number(document.getElementById('kunci-form-jumlah').value) || 0;
+  const grid = document.getElementById('manual-matrix');
+  let html = '';
+  for (let i = 1; i <= n; i++) {
+    html += `<div class="matrix-item"><span class="no">${String(i).padStart(2, '0')}</span>
+      <div class="option-pills" data-nomor="${i}">
+        ${['A', 'B', 'C', 'D'].map(opt => `<button type="button" class="option-pill" data-opt="${opt}">${opt}</button>`).join('')}
+      </div></div>`;
   }
-  const mapelId = cachedMapel[0] ? cachedMapel[0].id : '';
-  const res = await apiPost('saveKunciJawaban', { namaUjian, jumlahSoal, kunciJawaban, mapelId, bobotNilai: Math.round((100 / jumlahSoal) * 100) / 100 });
+  grid.innerHTML = html;
+  grid.querySelectorAll('.option-pills').forEach(group => {
+    group.addEventListener('click', e => {
+      if (!e.target.classList.contains('option-pill')) return;
+      const nomor = Number(group.dataset.nomor);
+      group.querySelectorAll('.option-pill').forEach(p => p.classList.remove('selected'));
+      e.target.classList.add('selected');
+      manualAnswers[nomor] = e.target.dataset.opt;
+      updateManualProgress();
+    });
+  });
+  updateManualProgress();
+}
+function updateManualProgress() {
+  const n = Number(document.getElementById('kunci-form-jumlah').value) || 0;
+  document.getElementById('manual-progress').textContent = `${Object.keys(manualAnswers).length} dari ${n} soal terisi`;
+}
+document.getElementById('btn-reset-manual').addEventListener('click', () => { manualAnswers = {}; renderManualMatrix(); });
+
+// --- Tab Import: dropzone fungsional + pratinjau ---
+const importDropzone = document.getElementById('import-dropzone');
+const importFileInput = document.getElementById('import-kunci-file');
+importDropzone.addEventListener('click', () => importFileInput.click());
+importDropzone.addEventListener('dragover', e => { e.preventDefault(); importDropzone.classList.add('dragover'); });
+importDropzone.addEventListener('dragleave', () => importDropzone.classList.remove('dragover'));
+importDropzone.addEventListener('drop', e => {
+  e.preventDefault(); importDropzone.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) handleKunciFileImport(e.dataTransfer.files[0]);
+});
+importFileInput.addEventListener('change', e => { if (e.target.files[0]) handleKunciFileImport(e.target.files[0]); });
+
+async function handleKunciFileImport(file) {
+  try {
+    showToast('Membaca file...', 'info');
+    const rows = await parseKunciJawabanFile(file);
+    if (!rows.length) return showToast('Tidak ada jawaban yang terdeteksi. Pastikan format file sesuai panduan.', 'error');
+    importedAnswers = rows;
+
+    document.getElementById('kunci-form-jumlah').value = rows.length;
+    document.getElementById('import-success-banner').classList.remove('hidden');
+    document.getElementById('import-success-banner').innerHTML =
+      `<span>✓ "${file.name}" berhasil dibaca — ${rows.length} soal terdeteksi</span>`;
+
+    const wrap = document.getElementById('import-preview-wrap');
+    wrap.classList.remove('hidden');
+    document.getElementById('import-preview-matrix').innerHTML = rows.map(r => `
+      <div class="matrix-item"><span class="no">${String(r.nomor).padStart(2, '0')}</span>
+        <div class="option-pills" data-nomor="${r.nomor}">
+          ${['A', 'B', 'C', 'D'].map(opt => `<button type="button" class="option-pill ${r.jawaban === opt ? 'selected' : ''}" data-opt="${opt}">${opt}</button>`).join('')}
+        </div></div>`).join('');
+
+    // izinkan guru koreksi manual hasil parsing yang salah
+    document.getElementById('import-preview-matrix').querySelectorAll('.option-pills').forEach(group => {
+      group.addEventListener('click', e => {
+        if (!e.target.classList.contains('option-pill')) return;
+        const nomor = Number(group.dataset.nomor);
+        group.querySelectorAll('.option-pill').forEach(p => p.classList.remove('selected'));
+        e.target.classList.add('selected');
+        const row = importedAnswers.find(r => r.nomor === nomor);
+        if (row) row.jawaban = e.target.dataset.opt;
+      });
+    });
+    showToast('File berhasil dibaca, silakan periksa pratinjau.', 'success');
+  } catch (err) {
+    showToast('Gagal membaca file: ' + err.message, 'error');
+  }
+}
+
+// --- Konfirmasi & Simpan (dari tab manapun yang aktif) ---
+document.getElementById('btn-confirm-kunci').addEventListener('click', async () => {
+  const namaUjian = document.getElementById('kunci-form-nama').value.trim();
+  const mapelId = document.getElementById('kunci-form-mapel').value;
+  const kelas = document.getElementById('kunci-form-kelas').value.trim();
+  const jumlahSoal = Number(document.getElementById('kunci-form-jumlah').value);
+  const isImportTab = !document.getElementById('tab-import').classList.contains('hidden');
+
+  if (!namaUjian) return showToast('Nama paket ujian wajib diisi.', 'error');
+  if (!mapelId) return showToast('Pilih mata pelajaran terlebih dahulu.', 'error');
+
+  const kunciJawaban = isImportTab
+    ? importedAnswers
+    : Object.keys(manualAnswers).map(n => ({ nomor: Number(n), jawaban: manualAnswers[n] }));
+
+  if (!kunciJawaban.length) return showToast('Belum ada kunci jawaban yang diisi.', 'error');
+
+  const btn = document.getElementById('btn-confirm-kunci');
+  showLoadingBtn(btn, 'Menyimpan...');
+  const res = await apiPost('saveKunciJawaban', { namaUjian, mapelId, kelas, jumlahSoal, kunciJawaban, bobotNilai: Math.round((100 / jumlahSoal) * 100) / 100 });
+  hideLoadingBtn(btn);
+
   showToast(res.message, res.success ? 'success' : 'error');
-  if (res.success) loadKunci();
+  if (res.success) { closeKunciModal(); loadKunci(); }
 });
 
 document.getElementById('btn-export-kunci').addEventListener('click', () => {
