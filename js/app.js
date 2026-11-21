@@ -157,51 +157,85 @@ async function removeMapel(id) {
 }
 
 // ============================================================
-// KUNCI JAWABAN — modal dengan tab Manual & Import
+// KUNCI JAWABAN — halaman penuh (builder selalu tampil, bukan modal)
 // ============================================================
 let manualAnswers = {};     // { nomor: 'A' }
-let importedAnswers = [];   // [{nomor, jawaban}]
+let editingKunciId = null;
 
 async function loadKunci() {
-  const res = await apiGet('getKunciJawaban');
-  if (!res.success) return;
-  cachedKunci = res.data;
-  const mapelRes = cachedMapel.length ? { data: cachedMapel } : await apiGet('getMapel');
+  const [kunciRes, mapelRes] = await Promise.all([
+    apiGet('getKunciJawaban'),
+    cachedMapel.length ? Promise.resolve({ data: cachedMapel }) : apiGet('getMapel')
+  ]);
+  if (!kunciRes.success) return;
+  cachedKunci = kunciRes.data;
   cachedMapel = mapelRes.data;
-  const mapelMap = {}; cachedMapel.forEach(m => mapelMap[m.id] = m.namaMapel);
 
-  document.querySelector('#kunci-table tbody').innerHTML = cachedKunci.length
-    ? cachedKunci.map(k => `
+  renderKunciTable(cachedKunci);
+  document.getElementById('kunci-form-mapel').innerHTML = cachedMapel.length
+    ? cachedMapel.map(m => `<option value="${m.id}">${m.namaMapel}</option>`).join('')
+    : '<option value="">(Belum ada mata pelajaran — tambahkan dulu)</option>';
+
+  resetKunciBuilder();
+}
+
+function renderKunciTable(data) {
+  const mapelMap = {}; cachedMapel.forEach(m => mapelMap[m.id] = m.namaMapel);
+  document.querySelector('#kunci-table tbody').innerHTML = data.length
+    ? data.map(k => `
       <tr>
         <td>${k.namaUjian}</td>
         <td>${mapelMap[k.mapelId] || '-'}</td>
         <td>${k.kelas || '-'}</td>
         <td>${k.jumlahSoal}</td>
-        <td><button class="btn btn-ghost btn-sm" onclick="removeKunci('${k.id}')">Hapus</button></td>
+        <td class="btn-row">
+          <button class="btn btn-outline btn-sm" onclick="editKunci('${k.id}')">Edit</button>
+          <button class="btn btn-ghost btn-sm" onclick="removeKunci('${k.id}')">Hapus</button>
+        </td>
       </tr>`).join('')
-    : '<tr><td colspan="5">Belum ada kunci jawaban.</td></tr>';
+    : '<tr><td colspan="5">Belum ada kunci jawaban tersimpan.</td></tr>';
 }
 
-// --- Buka/Tutup Modal ---
-function openKunciModal() {
-  manualAnswers = {}; importedAnswers = [];
+document.getElementById('kunci-search').addEventListener('input', (e) => {
+  const q = e.target.value.toLowerCase();
+  renderKunciTable(cachedKunci.filter(k => k.namaUjian.toLowerCase().includes(q)));
+});
+
+// --- Reset builder untuk membuat paket baru ---
+function resetKunciBuilder() {
+  editingKunciId = null;
+  manualAnswers = {};
+  document.getElementById('builder-title').textContent = 'Buat Paket Kunci Baru';
   document.getElementById('kunci-form-nama').value = '';
   document.getElementById('kunci-form-kelas').value = '';
   document.getElementById('kunci-form-jumlah').value = 40;
-  document.getElementById('kunci-form-mapel').innerHTML = cachedMapel.length
-    ? cachedMapel.map(m => `<option value="${m.id}">${m.namaMapel}</option>`).join('')
-    : '<option value="">(Belum ada mata pelajaran)</option>';
   switchKunciTab('manual');
   renderManualMatrix();
-  document.getElementById('import-preview-wrap').classList.add('hidden');
   document.getElementById('import-success-banner').classList.add('hidden');
-  document.getElementById('scan-preview')?.classList.add('hidden');
-  document.getElementById('modal-kunci').classList.remove('hidden');
+  updateBobotNilai();
 }
-function closeKunciModal() { document.getElementById('modal-kunci').classList.add('hidden'); }
-document.getElementById('btn-add-kunci').addEventListener('click', openKunciModal);
-document.getElementById('btn-close-modal-kunci').addEventListener('click', closeKunciModal);
-document.getElementById('btn-cancel-kunci').addEventListener('click', closeKunciModal);
+document.getElementById('btn-new-kunci').addEventListener('click', resetKunciBuilder);
+document.getElementById('btn-cancel-kunci').addEventListener('click', resetKunciBuilder);
+
+// --- Edit paket yang sudah tersimpan: load ke builder ---
+function editKunci(id) {
+  const k = cachedKunci.find(x => x.id === id);
+  if (!k) return;
+  editingKunciId = id;
+  document.getElementById('builder-title').textContent = 'Edit Paket: ' + k.namaUjian;
+  document.getElementById('kunci-form-nama').value = k.namaUjian;
+  document.getElementById('kunci-form-mapel').value = k.mapelId;
+  document.getElementById('kunci-form-kelas').value = k.kelas || '';
+  document.getElementById('kunci-form-jumlah').value = k.jumlahSoal;
+
+  const kj = typeof k.kunciJawaban === 'string' ? JSON.parse(k.kunciJawaban) : k.kunciJawaban;
+  manualAnswers = {};
+  kj.forEach(j => manualAnswers[j.nomor] = j.jawaban);
+  switchKunciTab('manual');
+  renderManualMatrix();
+  updateBobotNilai();
+  document.getElementById('kunci-builder-card').scrollIntoView({ behavior: 'smooth' });
+}
 
 // --- Tab switching ---
 function switchKunciTab(tab) {
@@ -211,16 +245,18 @@ function switchKunciTab(tab) {
 }
 document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => switchKunciTab(btn.dataset.tab)));
 
-// --- Tab Manual: render grid A/B/C/D interaktif ---
-document.getElementById('kunci-form-jumlah').addEventListener('input', renderManualMatrix);
+// --- Matriks Kunci Jawaban (dipakai bersama oleh tab Manual & hasil Import) ---
+document.getElementById('kunci-form-jumlah').addEventListener('input', () => { renderManualMatrix(); updateBobotNilai(); });
+
 function renderManualMatrix() {
   const n = Number(document.getElementById('kunci-form-jumlah').value) || 0;
+  document.getElementById('kunci-badge-soal').textContent = n + ' Soal Pilihan Ganda';
   const grid = document.getElementById('manual-matrix');
   let html = '';
   for (let i = 1; i <= n; i++) {
     html += `<div class="matrix-item"><span class="no">${String(i).padStart(2, '0')}</span>
       <div class="option-pills" data-nomor="${i}">
-        ${['A', 'B', 'C', 'D'].map(opt => `<button type="button" class="option-pill" data-opt="${opt}">${opt}</button>`).join('')}
+        ${['A', 'B', 'C', 'D'].map(opt => `<button type="button" class="option-pill ${manualAnswers[i] === opt ? 'selected' : ''}" data-opt="${opt}">${opt}</button>`).join('')}
       </div></div>`;
   }
   grid.innerHTML = html;
@@ -238,11 +274,20 @@ function renderManualMatrix() {
 }
 function updateManualProgress() {
   const n = Number(document.getElementById('kunci-form-jumlah').value) || 0;
-  document.getElementById('manual-progress').textContent = `${Object.keys(manualAnswers).length} dari ${n} soal terisi`;
+  const terisi = Object.keys(manualAnswers).length;
+  document.getElementById('manual-progress').textContent = `${terisi} dari ${n} soal terisi`;
+  document.getElementById('builder-status').textContent = terisi === n && n > 0
+    ? '✓ Semua soal terisi, siap disimpan.'
+    : `Isi ${n - terisi} soal lagi untuk melengkapi kunci jawaban.`;
 }
 document.getElementById('btn-reset-manual').addEventListener('click', () => { manualAnswers = {}; renderManualMatrix(); });
 
-// --- Tab Import: dropzone fungsional + pratinjau ---
+function updateBobotNilai() {
+  const n = Number(document.getElementById('kunci-form-jumlah').value) || 0;
+  document.getElementById('kunci-form-bobot').value = n ? Math.round((100 / n) * 100) / 100 : 0;
+}
+
+// --- Tab Import: dropzone fungsional, hasil langsung masuk ke Matriks yang sama ---
 const importDropzone = document.getElementById('import-dropzone');
 const importFileInput = document.getElementById('import-kunci-file');
 importDropzone.addEventListener('click', () => importFileInput.click());
@@ -256,65 +301,47 @@ importFileInput.addEventListener('change', e => { if (e.target.files[0]) handleK
 
 async function handleKunciFileImport(file) {
   try {
-    showToast('Membaca file...', 'info');
+    showToast('Membaca file ' + file.name + '...', 'info');
     const rows = await parseKunciJawabanFile(file);
-    if (!rows.length) return showToast('Tidak ada jawaban yang terdeteksi. Pastikan format file sesuai panduan.', 'error');
-    importedAnswers = rows;
+    if (!rows.length) return showToast('Tidak ada jawaban yang terdeteksi. Pastikan format file sesuai panduan (contoh: "1. A").', 'error');
 
+    manualAnswers = {};
+    rows.forEach(r => manualAnswers[r.nomor] = r.jawaban);
     document.getElementById('kunci-form-jumlah').value = rows.length;
+    renderManualMatrix();
+    updateBobotNilai();
+
     document.getElementById('import-success-banner').classList.remove('hidden');
     document.getElementById('import-success-banner').innerHTML =
-      `<span>✓ "${file.name}" berhasil dibaca — ${rows.length} soal terdeteksi</span>`;
-
-    const wrap = document.getElementById('import-preview-wrap');
-    wrap.classList.remove('hidden');
-    document.getElementById('import-preview-matrix').innerHTML = rows.map(r => `
-      <div class="matrix-item"><span class="no">${String(r.nomor).padStart(2, '0')}</span>
-        <div class="option-pills" data-nomor="${r.nomor}">
-          ${['A', 'B', 'C', 'D'].map(opt => `<button type="button" class="option-pill ${r.jawaban === opt ? 'selected' : ''}" data-opt="${opt}">${opt}</button>`).join('')}
-        </div></div>`).join('');
-
-    // izinkan guru koreksi manual hasil parsing yang salah
-    document.getElementById('import-preview-matrix').querySelectorAll('.option-pills').forEach(group => {
-      group.addEventListener('click', e => {
-        if (!e.target.classList.contains('option-pill')) return;
-        const nomor = Number(group.dataset.nomor);
-        group.querySelectorAll('.option-pill').forEach(p => p.classList.remove('selected'));
-        e.target.classList.add('selected');
-        const row = importedAnswers.find(r => r.nomor === nomor);
-        if (row) row.jawaban = e.target.dataset.opt;
-      });
-    });
-    showToast('File berhasil dibaca, silakan periksa pratinjau.', 'success');
+      `<span>✓ "${file.name}" berhasil diekstrak — ${rows.length} soal terdeteksi</span>`;
+    showToast(rows.length + ' jawaban berhasil dibaca. Silakan periksa matriks di kanan sebelum disimpan.', 'success');
   } catch (err) {
     showToast('Gagal membaca file: ' + err.message, 'error');
   }
 }
 
-// --- Konfirmasi & Simpan (dari tab manapun yang aktif) ---
+// --- Konfirmasi & Simpan ---
 document.getElementById('btn-confirm-kunci').addEventListener('click', async () => {
   const namaUjian = document.getElementById('kunci-form-nama').value.trim();
   const mapelId = document.getElementById('kunci-form-mapel').value;
   const kelas = document.getElementById('kunci-form-kelas').value.trim();
   const jumlahSoal = Number(document.getElementById('kunci-form-jumlah').value);
-  const isImportTab = !document.getElementById('tab-import').classList.contains('hidden');
 
   if (!namaUjian) return showToast('Nama paket ujian wajib diisi.', 'error');
   if (!mapelId) return showToast('Pilih mata pelajaran terlebih dahulu.', 'error');
 
-  const kunciJawaban = isImportTab
-    ? importedAnswers
-    : Object.keys(manualAnswers).map(n => ({ nomor: Number(n), jawaban: manualAnswers[n] }));
-
-  if (!kunciJawaban.length) return showToast('Belum ada kunci jawaban yang diisi.', 'error');
+  const kunciJawaban = Object.keys(manualAnswers).map(n => ({ nomor: Number(n), jawaban: manualAnswers[n] }));
+  if (!kunciJawaban.length) return showToast('Belum ada kunci jawaban yang diisi (manual atau import).', 'error');
 
   const btn = document.getElementById('btn-confirm-kunci');
   showLoadingBtn(btn, 'Menyimpan...');
-  const res = await apiPost('saveKunciJawaban', { namaUjian, mapelId, kelas, jumlahSoal, kunciJawaban, bobotNilai: Math.round((100 / jumlahSoal) * 100) / 100 });
+  const payload = { namaUjian, mapelId, kelas, jumlahSoal, kunciJawaban, bobotNilai: Math.round((100 / jumlahSoal) * 100) / 100 };
+  if (editingKunciId) payload.id = editingKunciId;
+  const res = await apiPost('saveKunciJawaban', payload);
   hideLoadingBtn(btn);
 
   showToast(res.message, res.success ? 'success' : 'error');
-  if (res.success) { closeKunciModal(); loadKunci(); }
+  if (res.success) loadKunci();
 });
 
 document.getElementById('btn-export-kunci').addEventListener('click', () => {

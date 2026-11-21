@@ -197,6 +197,14 @@ input, select, button { font-family: inherit; font-size: 14px; }
 }
 
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--primary); }
+
+.builder-footer {
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+  margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border);
+}
+#kunci-builder-card.locked { opacity: 0.5; pointer-events: none; }
 
 /* ============================================================
    TABLES
@@ -322,6 +330,7 @@ tr:hover td { background: rgba(37,99,235,0.04); }
   .nav-item { justify-content: center; }
   .topbar, .main-content { left: 72px; margin-left: 72px; }
   .grid-2 { grid-template-columns: 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
 }
 

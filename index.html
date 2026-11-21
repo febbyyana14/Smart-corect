@@ -144,40 +144,50 @@
       </div>
     </div>
 
-    <!-- KUNCI JAWABAN -->
+    <!-- KUNCI JAWABAN — halaman penuh (builder), bukan modal -->
     <section id="page-kunci" class="page hidden">
       <div class="page-header">
-        <div><h1>Kelola Kunci Jawaban</h1><p class="page-sub">Buat manual atau import dari Excel, Word, atau PDF.</p></div>
+        <div>
+          <span class="eyebrow">EVALUASI AKADEMIK · Modul Kunci Jawaban</span>
+          <h1>Kelola Kunci Jawaban Ujian</h1>
+          <p class="page-sub">Buat kunci jawaban manual atau import dari Excel, Word, dan PDF secara instan.</p>
+        </div>
         <div class="btn-row">
-          <button class="btn btn-outline" id="btn-export-kunci">⬇ Ekspor</button>
-          <button class="btn btn-primary" id="btn-add-kunci">+ Buat Kunci Baru</button>
+          <button class="btn btn-outline" id="btn-export-kunci">⬇ Ekspor Kunci (.xlsx)</button>
+          <button class="btn btn-primary" id="btn-new-kunci">+ Buat Kunci Baru</button>
         </div>
       </div>
-      <div class="table-wrap"><table id="kunci-table">
-        <thead><tr><th>Nama Ujian</th><th>Mapel</th><th>Kelas</th><th>Jumlah Soal</th><th>Aksi</th></tr></thead>
-        <tbody></tbody>
-      </table></div>
-    </section>
 
-    <!-- MODAL: BUAT/EDIT KUNCI JAWABAN -->
-    <div id="modal-kunci" class="modal-overlay hidden">
-      <div class="modal-box modal-wide">
-        <div class="modal-header">
-          <h3>Buat Kunci Jawaban Ujian</h3>
-          <button class="modal-close" id="btn-close-modal-kunci">✕</button>
+      <!-- Daftar kunci tersimpan -->
+      <div class="card">
+        <div class="matrix-toolbar">
+          <h3 style="margin:0">Paket Kunci Jawaban Tersimpan</h3>
+          <input type="text" id="kunci-search" placeholder="Cari paket kunci jawaban, mapel..." style="max-width:260px">
+        </div>
+        <div class="table-wrap"><table id="kunci-table">
+          <thead><tr><th>Nama Ujian</th><th>Mapel</th><th>Kelas</th><th>Jumlah Soal</th><th>Aksi</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+
+      <!-- Builder: Konfigurasi + Tab Manual/Import + Matriks -->
+      <div class="card" id="kunci-builder-card">
+        <div class="matrix-toolbar">
+          <h3 style="margin:0" id="builder-title">Buat Paket Kunci Baru</h3>
+          <span class="badge badge-info" id="kunci-badge-soal">0 Soal Pilihan Ganda</span>
         </div>
 
-        <div class="grid-2" style="margin-bottom:16px">
+        <div class="grid-4" style="margin-bottom:18px">
           <div>
             <label>Nama Paket Ujian</label>
             <input type="text" id="kunci-form-nama" placeholder="Contoh: Penilaian Akhir Semester Ganjil">
           </div>
           <div>
-            <label>Mata Pelajaran</label>
+            <label>Mata Pelajaran Terkait</label>
             <select id="kunci-form-mapel"></select>
           </div>
           <div>
-            <label>Kelas</label>
+            <label>Kelas / Tingkat</label>
             <input type="text" id="kunci-form-kelas" placeholder="Contoh: XII IPA 1">
           </div>
           <div>
@@ -191,42 +201,64 @@
           <button class="tab-btn" data-tab="import">⬆ Import File (Excel / Word / PDF)</button>
         </div>
 
-        <!-- TAB: MANUAL -->
-        <div id="tab-manual" class="tab-content">
-          <p class="page-sub">Klik tombol A/B/C/D untuk tiap nomor soal.</p>
-          <div class="matrix-toolbar">
-            <span id="manual-progress" style="font-size:13px;color:var(--text-muted)">0 dari 0 soal terisi</span>
-            <button class="btn btn-outline btn-sm" id="btn-reset-manual">↺ Reset</button>
-          </div>
-          <div id="manual-matrix" class="matrix-grid"></div>
-        </div>
+        <div class="grid-2">
+          <!-- KIRI: tergantung tab -->
+          <div>
+            <!-- TAB MANUAL: info saja, grid ada di kanan -->
+            <div id="tab-manual" class="tab-content">
+              <div class="card" style="background:var(--bg);box-shadow:none">
+                <h3>✏️ Mode Input Manual</h3>
+                <p class="page-sub" style="margin-bottom:0">Klik opsi A/B/C/D pada matriks di sebelah kanan untuk tiap nomor soal. Progres pengisian ditampilkan otomatis.</p>
+              </div>
+              <div class="matrix-toolbar" style="margin-top:14px">
+                <span id="manual-progress" style="font-size:13px;color:var(--text-muted)">0 dari 0 soal terisi</span>
+                <button class="btn btn-outline btn-sm" id="btn-reset-manual">↺ Reset Jawaban</button>
+              </div>
+            </div>
 
-        <!-- TAB: IMPORT -->
-        <div id="tab-import" class="tab-content hidden">
-          <div class="import-dropzone" id="import-dropzone">
-            <input type="file" id="import-kunci-file" accept=".xlsx,.xls,.csv,.doc,.docx,.pdf" class="hidden">
-            <span class="icon">⬆</span>
-            <p><strong>Tarik file ke sini atau klik untuk memilih</strong></p>
-            <p class="hint" style="background:none;color:var(--text-muted);padding:0">Sistem akan membaca nomor soal & jawaban secara otomatis.</p>
-            <div class="import-format-chips">
-              <span class="format-chip">XLSX Excel</span>
-              <span class="format-chip">DOCX Word</span>
-              <span class="format-chip">PDF Dokumen</span>
+            <!-- TAB IMPORT: dropzone -->
+            <div id="tab-import" class="tab-content hidden">
+              <div class="import-dropzone" id="import-dropzone">
+                <input type="file" id="import-kunci-file" accept=".xlsx,.xls,.csv,.doc,.docx,.pdf" class="hidden">
+                <span class="icon">⬆</span>
+                <p><strong>Tarik file lembar kunci jawaban ke sini</strong></p>
+                <p class="page-sub" style="margin:4px 0 0">atau klik untuk memilih dari komputer</p>
+                <div class="import-format-chips">
+                  <span class="format-chip">XLSX Excel</span>
+                  <span class="format-chip">DOCX Word</span>
+                  <span class="format-chip">PDF Dokumen</span>
+                </div>
+              </div>
+              <div id="import-success-banner" class="import-success-banner hidden"></div>
+            </div>
+
+            <!-- Konfigurasi Lembar Kunci -->
+            <div class="card" style="margin-top:16px">
+              <h3>⚙️ Konfigurasi Lembar Kunci</h3>
+              <div class="grid-2">
+                <div><label>Bobot per Soal</label><input type="number" id="kunci-form-bobot" step="0.01" readonly></div>
+                <div><label>Akumulasi Nilai Maksimum</label><input type="text" id="kunci-form-total" readonly value="100.00"></div>
+              </div>
             </div>
           </div>
-          <div id="import-success-banner" class="import-success-banner hidden"></div>
-          <div id="import-preview-wrap" class="hidden" style="margin-top:16px">
-            <div class="matrix-toolbar"><strong>Pratinjau Hasil Ekstraksi — periksa sebelum disimpan</strong></div>
-            <div id="import-preview-matrix" class="matrix-grid"></div>
+
+          <!-- KANAN: Matriks Kunci Jawaban (dipakai untuk manual & preview import) -->
+          <div>
+            <h3 style="margin-bottom:10px">🔲 Matriks Kunci Jawaban</h3>
+            <div id="manual-matrix" class="matrix-grid"></div>
           </div>
         </div>
 
-        <div class="modal-footer">
-          <button class="btn btn-outline" id="btn-cancel-kunci">Batal</button>
-          <button class="btn btn-accent" id="btn-confirm-kunci">✓ Konfirmasi & Simpan Kunci Jawaban</button>
+        <!-- Bar aksi bawah -->
+        <div class="builder-footer">
+          <span id="builder-status" class="page-sub" style="margin:0">Isi jumlah soal untuk mulai mengisi kunci jawaban.</span>
+          <div class="btn-row">
+            <button class="btn btn-outline" id="btn-cancel-kunci">Batal</button>
+            <button class="btn btn-accent" id="btn-confirm-kunci">✓ Konfirmasi & Simpan Kunci Jawaban</button>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
 
     <!-- PINDAI & KOREKSI -->
     <section id="page-pindai" class="page hidden">
