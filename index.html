@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartCorrect – Automatic Exam Checker</title>
+<link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%232563EB'/%3E%3Cpath d='M7 12l3 3 7-7' stroke='%23fff' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ============================================ -->
+<!-- TOAST NOTIFICATION -->
+<!-- ============================================ -->
+<div id="toast" class="toast"></div>
+
+<!-- ============================================ -->
+<!-- AUTH SCREEN (Login / Register) -->
+<!-- ============================================ -->
+<div id="auth-screen" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <svg width="40" height="40" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#2563EB"/><path d="M7 12l3 3 7-7" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>SmartCorrect</span>
+    </div>
+
+    <form id="login-form" class="auth-form">
+      <h2>Masuk ke Akun Anda</h2>
+      <p class="auth-sub">Koreksi ujian otomatis dalam hitungan detik.</p>
+      <label>Email</label>
+      <input type="email" id="login-email" required placeholder="nama@sekolah.sch.id">
+      <label>Kata Sandi</label>
+      <input type="password" id="login-password" required placeholder="••••••••">
+      <button type="submit" class="btn btn-primary btn-block">Masuk</button>
+      <p class="auth-switch">Belum punya akun? <a href="#" id="show-register">Daftar</a></p>
+    </form>
+
+    <form id="register-form" class="auth-form hidden">
+      <h2>Buat Akun Guru</h2>
+      <p class="auth-sub">Mulai koreksi otomatis lembar jawaban ujian.</p>
+      <label>Nama Lengkap</label>
+      <input type="text" id="reg-nama" required placeholder="Ibu/Bapak ...">
+      <label>Email</label>
+      <input type="email" id="reg-email" required placeholder="nama@sekolah.sch.id">
+      <label>Kata Sandi</label>
+      <input type="password" id="reg-password" required placeholder="Minimal 6 karakter">
+      <button type="submit" class="btn btn-primary btn-block">Daftar</button>
+      <p class="auth-switch">Sudah punya akun? <a href="#" id="show-login">Masuk</a></p>
+    </form>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- MAIN APP -->
+<!-- ============================================ -->
+<div id="app" class="app hidden">
+
+  <!-- SIDEBAR (desktop) -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <svg width="28" height="28" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#2563EB"/><path d="M7 12l3 3 7-7" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span id="app-name-sidebar">SmartCorrect</span>
+    </div>
+    <div class="sidebar-user">
+      <span id="sidebar-user-name">-</span>
+      <small id="sidebar-user-role">-</small>
+    </div>
+
+    <nav class="sidebar-nav">
+      <p class="nav-label">Menu Utama</p>
+      <a href="#dashboard" data-page="dashboard" class="nav-item">📊 Dashboard</a>
+      <a href="#mapel" data-page="mapel" class="nav-item">📘 Kelola Mata Pelajaran</a>
+      <a href="#kunci" data-page="kunci" class="nav-item">📝 Kelola Kunci Jawaban</a>
+      <a href="#pindai" data-page="pindai" class="nav-item">📷 Pindai & Koreksi</a>
+      <a href="#siswa" data-page="siswa" class="nav-item">👥 Data Siswa</a>
+      <a href="#riwayat" data-page="riwayat" class="nav-item">🕒 Riwayat Ujian</a>
+      <a href="#laporan" data-page="laporan" class="nav-item">📈 Laporan & Analisis</a>
+
+      <p class="nav-label admin-only hidden">Administrasi</p>
+      <a href="#users" data-page="users" class="nav-item admin-only hidden">🔐 Manajemen Pengguna</a>
+      <a href="#branding" data-page="branding" class="nav-item admin-only hidden">🎨 Pengaturan Branding</a>
+    </nav>
+
+    <button id="btn-logout" class="btn btn-ghost btn-block">Keluar</button>
+  </aside>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <nav class="mobile-nav">
+    <a href="#dashboard" data-page="dashboard" class="nav-item">📊<span>Dashboard</span></a>
+    <a href="#pindai" data-page="pindai" class="nav-item">📷<span>Koreksi</span></a>
+    <a href="#riwayat" data-page="riwayat" class="nav-item">🕒<span>Riwayat</span></a>
+    <a href="#laporan" data-page="laporan" class="nav-item">📈<span>Laporan</span></a>
+    <a href="#more" id="mobile-more" class="nav-item">☰<span>Lainnya</span></a>
+  </nav>
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <button id="btn-theme-toggle" class="icon-btn" title="Ganti tema">🌙</button>
+    <div class="topbar-spacer"></div>
+    <span id="topbar-user">-</span>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <!-- DASHBOARD -->
+    <section id="page-dashboard" class="page">
+      <h1>Dashboard</h1>
+      <p class="page-sub">Selamat datang kembali! Berikut ringkasan aktivitas koreksi Anda.</p>
+      <div class="stat-grid" id="dashboard-stats"></div>
+      <div class="card">
+        <h3>Rata-rata Nilai per Mata Pelajaran</h3>
+        <div id="dashboard-chart" class="bar-chart"></div>
+      </div>
+      <div class="card">
+        <h3>Ujian Terbaru Dikoreksi</h3>
+        <div class="table-wrap"><table id="dashboard-recent"><thead><tr><th>Nilai</th><th>Status</th><th>Tanggal</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- MATA PELAJARAN -->
+    <section id="page-mapel" class="page hidden">
+      <div class="page-header">
+        <div><h1>Kelola Mata Pelajaran</h1><p class="page-sub">Tambah dan kelola daftar mata pelajaran Anda.</p></div>
+        <button class="btn btn-primary" id="btn-add-mapel">+ Tambah Mapel</button>
+      </div>
+      <div class="card-grid" id="mapel-grid"></div>
+    </section>
+
+    <!-- KUNCI JAWABAN -->
+    <section id="page-kunci" class="page hidden">
+      <div class="page-header">
+        <div><h1>Kelola Kunci Jawaban</h1><p class="page-sub">Buat manual atau import dari Excel, Word, atau PDF.</p></div>
+        <div class="btn-row">
+          <button class="btn btn-outline" id="btn-export-kunci">⬇ Ekspor</button>
+          <button class="btn btn-primary" id="btn-add-kunci">+ Buat Kunci Baru</button>
+        </div>
+      </div>
+      <div class="table-wrap"><table id="kunci-table">
+        <thead><tr><th>Nama Ujian</th><th>Mapel</th><th>Kelas</th><th>Jumlah Soal</th><th>Aksi</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </section>
+
+    <!-- PINDAI & KOREKSI -->
+    <section id="page-pindai" class="page hidden">
+      <h1>Pindai & Koreksi Otomatis</h1>
+      <p class="page-sub">Ambil foto atau unggah lembar jawaban untuk dikoreksi.</p>
+      <div class="grid-2">
+        <div class="card">
+          <label>Pilih Ujian</label>
+          <select id="pindai-ujian"></select>
+          <label>Pilih Siswa</label>
+          <select id="pindai-siswa"></select>
+          <div class="scan-dropzone" id="scan-dropzone">
+            <input type="file" id="scan-file" accept="image/*" capture="environment" class="hidden">
+            <span class="scan-icon">📷</span>
+            <p>Ketuk untuk ambil foto / unggah lembar jawaban</p>
+          </div>
+          <img id="scan-preview" class="scan-preview hidden">
+        </div>
+        <div class="card">
+          <h3>Input Hasil Deteksi Jawaban</h3>
+          <p class="hint">Catatan: deteksi otomatis bubble memerlukan konfigurasi Google Cloud Vision API (lihat panduan). Untuk versi dasar, isi jawaban siswa secara manual per nomor di bawah ini.</p>
+          <div id="pindai-grid" class="answer-grid"></div>
+          <button class="btn btn-primary btn-block" id="btn-submit-koreksi">✓ Simpan & Hitung Nilai</button>
+          <div id="pindai-result" class="hidden"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DATA SISWA -->
+    <section id="page-siswa" class="page hidden">
+      <div class="page-header">
+        <div><h1>Data Siswa</h1><p class="page-sub">Kelola daftar siswa Anda.</p></div>
+        <div class="btn-row">
+          <input type="file" id="import-siswa-file" accept=".csv,.xlsx" class="hidden">
+          <button class="btn btn-outline" id="btn-import-siswa">⬆ Import Excel/CSV</button>
+          <button class="btn btn-primary" id="btn-add-siswa">+ Tambah Siswa</button>
+        </div>
+      </div>
+      <input type="text" id="siswa-search" placeholder="Cari nama siswa..." class="search-input">
+      <div class="table-wrap"><table id="siswa-table">
+        <thead><tr><th>Nama</th><th>No. Absen</th><th>Kelas</th><th>Aksi</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </section>
+
+    <!-- RIWAYAT UJIAN -->
+    <section id="page-riwayat" class="page hidden">
+      <h1>Riwayat Hasil Ujian</h1>
+      <p class="page-sub">Cari, filter, dan unduh hasil koreksi ujian.</p>
+      <div class="filter-bar">
+        <input type="text" id="riwayat-search" placeholder="Cari nama siswa...">
+        <select id="riwayat-filter-kelas"><option value="">Semua Kelas</option></select>
+        <button class="btn btn-outline" id="btn-export-riwayat">⬇ Ekspor Excel</button>
+        <button class="btn btn-outline" id="btn-print-riwayat">🖨 Cetak</button>
+      </div>
+      <div class="table-wrap"><table id="riwayat-table">
+        <thead><tr><th>Nama Siswa</th><th>Kelas</th><th>Ujian</th><th>Benar</th><th>Salah</th><th>Kosong</th><th>Nilai</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </section>
+
+    <!-- LAPORAN & ANALISIS -->
+    <section id="page-laporan" class="page hidden">
+      <h1>Laporan & Analisis Butir Soal</h1>
+      <p class="page-sub">Evaluasi kualitas soal dan performa kelas.</p>
+      <select id="laporan-ujian" class="select-lg"></select>
+      <div class="stat-grid" id="laporan-stats"></div>
+      <div class="card">
+        <h3>Tabel Analisis Butir Soal</h3>
+        <div class="table-wrap"><table id="laporan-table">
+          <thead><tr><th>No.</th><th>Kunci</th><th>% Benar</th><th>% Salah</th><th>% Kosong</th><th>Distribusi A/B/C/D</th><th>Tingkat</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+      <div class="card" id="laporan-kesimpulan"></div>
+    </section>
+
+    <!-- MANAJEMEN PENGGUNA (Super Admin) -->
+    <section id="page-users" class="page hidden">
+      <h1>Manajemen Pengguna</h1>
+      <p class="page-sub">Kelola akun guru dan persetujuan pendaftaran.</p>
+      <div class="table-wrap"><table id="users-table">
+        <thead><tr><th>Nama</th><th>Email</th><th>Role</th><th>Status</th><th>Aksi</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </section>
+
+    <!-- PENGATURAN BRANDING (Super Admin) -->
+    <section id="page-branding" class="page hidden">
+      <h1>Pengaturan Branding</h1>
+      <p class="page-sub">Sesuaikan identitas visual aplikasi Anda.</p>
+      <div class="grid-2">
+        <div class="card">
+          <label>Nama Aplikasi</label>
+          <input type="text" id="brand-appName">
+          <label>URL Logo</label>
+          <input type="text" id="brand-logoUrl" placeholder="https://...">
+          <label>Warna Primary</label>
+          <input type="color" id="brand-primaryColor">
+          <label>Warna Accent</label>
+          <input type="color" id="brand-accentColor">
+          <button class="btn btn-primary btn-block" id="btn-save-branding">Simpan Perubahan</button>
+        </div>
+        <div class="card">
+          <h3>Pratinjau</h3>
+          <div id="brand-preview" class="brand-preview"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- CDN libraries untuk import Excel/Word/PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<script src="js/config.js"></script>
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/import-parsers.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
